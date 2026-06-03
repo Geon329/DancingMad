@@ -52,6 +52,8 @@ const PLAYER_VIEWS: readonly PlayerView[] = [
   { id: "r2", label: "R2", asset: publicPath("/fru-arrow/magical-ranged.png") }
 ] as const;
 
+const REFERENCE_PATTERN_SRC = publicPath("/fru-arrow/reference-pattern.png");
+
 const INITIAL_POSITIONS: PlayerPositions = {
   t1: { x: 50, y: 22 },
   t2: { x: 50, y: 78 },
@@ -230,6 +232,9 @@ export function FruArrowSim() {
 
   return (
     <main className="min-h-screen bg-[#151719] text-slate-100">
+      <div className="pointer-events-none fixed left-2 top-2 z-50 w-24 overflow-hidden rounded-md border border-white/20 bg-black/35 p-1 shadow-[0_16px_38px_rgba(0,0,0,0.38)] sm:left-4 sm:top-4 sm:w-36 md:w-40">
+        <img className="block aspect-square w-full rounded-[4px] object-cover" src={REFERENCE_PATTERN_SRC} alt="Arrow placement reference" />
+      </div>
       <div className="mx-auto grid min-h-screen w-full max-w-[1440px] grid-cols-1 gap-5 px-4 py-4 lg:grid-cols-[minmax(560px,1fr)_380px] lg:px-6">
         <section className="flex min-h-[calc(100vh-2rem)] items-center justify-center">
           <div
