@@ -2,6 +2,7 @@
 
 import {
   AlertTriangle,
+  Maximize2,
   Pause,
   Play,
   RotateCcw,
@@ -39,6 +40,12 @@ type PlayerView = {
 
 type DragState = {
   readonly playerId: PlayerId;
+} | null;
+
+type ReferenceResizeState = {
+  readonly startX: number;
+  readonly startY: number;
+  readonly startWidth: number;
 } | null;
 
 const PLAYER_VIEWS: readonly PlayerView[] = [
@@ -86,6 +93,9 @@ const SLOT_LABEL: Record<DebuffSlot, string> = {
 
 const TOTAL_MS = 11000;
 const TICK_MS = 100;
+const REFERENCE_INITIAL_WIDTH = 180;
+const REFERENCE_MIN_WIDTH = 120;
+const REFERENCE_MAX_WIDTH = 420;
 
 export function FruArrowSim() {
   const [seed, setSeed] = useState("fru-arrow-001");
@@ -94,6 +104,8 @@ export function FruArrowSim() {
   const [isRunning, setIsRunning] = useState(false);
   const [arrowDrops, setArrowDrops] = useState<readonly ArrowDrop[]>([]);
   const [dragState, setDragState] = useState<DragState>(null);
+  const [referenceWidth, setReferenceWidth] = useState(REFERENCE_INITIAL_WIDTH);
+  const [referenceResizeState, setReferenceResizeState] = useState<ReferenceResizeState>(null);
   const arenaRef = useRef<HTMLDivElement>(null);
   const positionsRef = useRef<PlayerPositions>(INITIAL_POSITIONS);
   const resolvedSlotsRef = useRef<Set<DebuffSlot>>(new Set());
@@ -226,14 +238,56 @@ export function FruArrowSim() {
     setDragState(null);
   }
 
+  function startReferenceResize(event: ReactPointerEvent<HTMLButtonElement>): void {
+    event.preventDefault();
+    event.stopPropagation();
+    event.currentTarget.setPointerCapture(event.pointerId);
+    setReferenceResizeState({ startX: event.clientX, startY: event.clientY, startWidth: referenceWidth });
+  }
+
+  function continueReferenceResize(event: ReactPointerEvent<HTMLButtonElement>): void {
+    if (referenceResizeState === null) {
+      return;
+    }
+
+    event.preventDefault();
+    const dragX = event.clientX - referenceResizeState.startX;
+    const dragY = event.clientY - referenceResizeState.startY;
+    const dragDistance = Math.abs(dragX) >= Math.abs(dragY) ? dragX : dragY;
+    setReferenceWidth(clampReferenceWidth(referenceResizeState.startWidth + dragDistance));
+  }
+
+  function endReferenceResize(event: ReactPointerEvent<HTMLButtonElement>): void {
+    if (event.currentTarget.hasPointerCapture(event.pointerId)) {
+      event.currentTarget.releasePointerCapture(event.pointerId);
+    }
+
+    setReferenceResizeState(null);
+  }
+
   const progressPercent = Math.min(100, (elapsedMs / 10000) * 100);
   const duplicateCount = plan.assignments.filter((assignment) => assignment.first === assignment.second).length;
   const mixedCount = plan.assignments.length - duplicateCount;
 
   return (
     <main className="min-h-screen bg-[#151719] text-slate-100">
-      <div className="pointer-events-none fixed left-2 top-2 z-50 w-24 overflow-hidden rounded-md border border-white/20 bg-black/35 p-1 shadow-[0_16px_38px_rgba(0,0,0,0.38)] sm:left-4 sm:top-4 sm:w-36 md:w-40">
+      <div
+        className="fixed left-2 top-2 z-50 overflow-hidden rounded-md border border-white/20 bg-black/35 p-1 shadow-[0_16px_38px_rgba(0,0,0,0.38)] sm:left-4 sm:top-4"
+        style={{ width: `${referenceWidth}px` }}
+      >
         <img className="block aspect-square w-full rounded-[4px] object-cover" src={REFERENCE_PATTERN_SRC} alt="Arrow placement reference" />
+        <button
+          type="button"
+          className="absolute bottom-1 right-1 grid h-8 w-8 touch-none place-items-center rounded bg-black/70 text-white shadow-[0_6px_14px_rgba(0,0,0,0.45)] ring-1 ring-white/25 transition-colors hover:bg-black/90 focus:outline-none focus:ring-2 focus:ring-amber-200"
+          aria-label="Resize reference image"
+          title="Resize reference image"
+          onPointerDown={startReferenceResize}
+          onPointerMove={continueReferenceResize}
+          onPointerUp={endReferenceResize}
+          onPointerCancel={endReferenceResize}
+        >
+          <Maximize2 aria-hidden size={16} />
+        </button>
       </div>
       <div className="mx-auto grid min-h-screen w-full max-w-[1440px] grid-cols-1 gap-5 px-4 py-4 lg:grid-cols-[minmax(560px,1fr)_380px] lg:px-6">
         <section className="flex min-h-[calc(100vh-2rem)] items-center justify-center">
@@ -539,6 +593,10 @@ function labelForPlayer(playerId: PlayerId): string {
 
 function createSeed(): string {
   return `fru-arrow-${Date.now().toString(36)}-${Math.floor(Math.random() * 10000).toString(36)}`;
+}
+
+function clampReferenceWidth(width: number): number {
+  return Math.min(REFERENCE_MAX_WIDTH, Math.max(REFERENCE_MIN_WIDTH, width));
 }
 
 function assertNever(value: never): never {
