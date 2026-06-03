@@ -129,6 +129,32 @@ export function createArrowDrops(
   });
 }
 
+export function createStandardPlayerPositions(
+  assignments: readonly ArrowAssignment[],
+  currentPositions: PlayerPositions,
+  lockedPlayerId: PlayerId | null
+): PlayerPositions {
+  const nextPositions: PlayerPositions = { ...currentPositions };
+
+  for (const assignment of assignments) {
+    if (assignment.playerId === lockedPlayerId) {
+      continue;
+    }
+
+    nextPositions[assignment.playerId] = getStandardPositionForAssignment(assignment);
+  }
+
+  return nextPositions;
+}
+
+export function getStandardPositionForAssignment(assignment: ArrowAssignment): Point {
+  if (assignment.first === assignment.second) {
+    return getDuplicateDirectionPosition(assignment.first);
+  }
+
+  return getMixedDirectionPosition(assignment.first, assignment.second);
+}
+
 export function detectArrowHits(drops: readonly ArrowDrop[], positions: PlayerPositions): readonly ArrowHit[] {
   const hits: ArrowHit[] = [];
 
@@ -164,6 +190,45 @@ export function clampToArena(point: Point): Point {
     x: center + dx * ratio,
     y: center + dy * ratio
   };
+}
+
+function getDuplicateDirectionPosition(direction: Direction): Point {
+  switch (direction) {
+    case "left":
+      return { x: 50, y: 14 };
+    case "up":
+      return { x: 86, y: 50 };
+    case "right":
+      return { x: 50, y: 86 };
+    case "down":
+      return { x: 14, y: 50 };
+    default:
+      return assertNever(direction);
+  }
+}
+
+function getMixedDirectionPosition(first: Direction, second: Direction): Point {
+  if (isDirectionPair(first, second, "left", "up")) {
+    return { x: 34, y: 50 };
+  }
+
+  if (isDirectionPair(first, second, "up", "right")) {
+    return { x: 50, y: 34 };
+  }
+
+  if (isDirectionPair(first, second, "right", "down")) {
+    return { x: 66, y: 50 };
+  }
+
+  if (isDirectionPair(first, second, "down", "left")) {
+    return { x: 50, y: 66 };
+  }
+
+  throw new MechanicGenerationError(`No standard position for ${first}-${second}.`);
+}
+
+function isDirectionPair(first: Direction, second: Direction, left: Direction, right: Direction): boolean {
+  return (first === left && second === right) || (first === right && second === left);
 }
 
 function isPointInArrowLane(origin: Point, direction: Direction, target: Point): boolean {

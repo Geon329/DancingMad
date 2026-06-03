@@ -2,6 +2,8 @@
 
 import {
   AlertTriangle,
+  Crosshair,
+  Lock,
   Maximize2,
   Pause,
   Play,
@@ -16,6 +18,7 @@ import {
   clampToArena,
   createArrowDebuffPlan,
   createArrowDrops,
+  createStandardPlayerPositions,
   detectArrowHits,
   getAssignmentDirection,
   getResolveSlots,
@@ -106,6 +109,7 @@ export function FruArrowSim() {
   const [dragState, setDragState] = useState<DragState>(null);
   const [referenceWidth, setReferenceWidth] = useState(REFERENCE_INITIAL_WIDTH);
   const [referenceResizeState, setReferenceResizeState] = useState<ReferenceResizeState>(null);
+  const [lockedPlayerId, setLockedPlayerId] = useState<PlayerId | null>(null);
   const arenaRef = useRef<HTMLDivElement>(null);
   const positionsRef = useRef<PlayerPositions>(INITIAL_POSITIONS);
   const resolvedSlotsRef = useRef<Set<DebuffSlot>>(new Set());
@@ -180,6 +184,7 @@ export function FruArrowSim() {
     setArrowDrops([]);
     resolvedSlotsRef.current = new Set<DebuffSlot>();
     setPlayerPositions(INITIAL_POSITIONS);
+    setLockedPlayerId(null);
 
     if (nextSeed !== undefined) {
       setSeed(nextSeed);
@@ -219,6 +224,7 @@ export function FruArrowSim() {
   function startDrag(playerId: PlayerId, event: ReactPointerEvent<HTMLButtonElement>): void {
     event.currentTarget.setPointerCapture(event.pointerId);
     setDragState({ playerId });
+    setLockedPlayerId(playerId);
     movePlayer(playerId, event);
   }
 
@@ -263,6 +269,14 @@ export function FruArrowSim() {
     }
 
     setReferenceResizeState(null);
+  }
+
+  function autoPlacePlayers(): void {
+    setIsRunning(false);
+    setElapsedMs(0);
+    setArrowDrops([]);
+    resolvedSlotsRef.current = new Set<DebuffSlot>();
+    setPlayerPositions((current) => createStandardPlayerPositions(plan.assignments, current, lockedPlayerId));
   }
 
   const progressPercent = Math.min(100, (elapsedMs / 10000) * 100);
@@ -330,7 +344,7 @@ export function FruArrowSim() {
                 <button
                   key={player.id}
                   type="button"
-                  className={getPlayerClassName(hitPlayerIds.has(player.id))}
+                  className={getPlayerClassName(hitPlayerIds.has(player.id), lockedPlayerId === player.id)}
                   style={getPlayerStyle(playerPositions[player.id])}
                   aria-label={`${player.label} move handle`}
                   onPointerDown={(event) => startDrag(player.id, event)}
@@ -368,20 +382,24 @@ export function FruArrowSim() {
             <div className="h-full rounded-full bg-amber-300 transition-[width] duration-100" style={{ width: `${progressPercent}%` }} />
           </div>
 
-          <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
-            <button className="flex h-11 items-center justify-center gap-2 rounded-md bg-emerald-500 px-3 text-sm font-black text-emerald-950 shadow" type="button" onClick={() => setIsRunning((value) => !value)}>
+          <div className="grid grid-cols-2 gap-2 sm:grid-cols-5">
+            <button className="flex h-11 items-center justify-center gap-1.5 rounded-md bg-emerald-500 px-2 text-xs font-black text-emerald-950 shadow sm:text-[13px]" type="button" onClick={() => setIsRunning((value) => !value)}>
               {isRunning ? <Pause aria-hidden size={18} /> : <Play aria-hidden size={18} />}
               {isRunning ? "Pause" : "Start"}
             </button>
-            <button className="flex h-11 items-center justify-center gap-2 rounded-md bg-slate-700 px-3 text-sm font-black text-white shadow" type="button" onClick={() => resetRun()}>
+            <button className="flex h-11 items-center justify-center gap-1.5 rounded-md bg-sky-300 px-2 text-xs font-black text-sky-950 shadow sm:text-[13px]" type="button" onClick={autoPlacePlayers}>
+              <Crosshair aria-hidden size={18} />
+              Auto
+            </button>
+            <button className="flex h-11 items-center justify-center gap-1.5 rounded-md bg-slate-700 px-2 text-xs font-black text-white shadow sm:text-[13px]" type="button" onClick={() => resetRun()}>
               <RotateCcw aria-hidden size={18} />
               Reset
             </button>
-            <button className="flex h-11 items-center justify-center gap-2 rounded-md bg-slate-700 px-3 text-sm font-black text-white shadow" type="button" onClick={resolveNow}>
+            <button className="flex h-11 items-center justify-center gap-1.5 rounded-md bg-slate-700 px-2 text-xs font-black text-white shadow sm:text-[13px]" type="button" onClick={resolveNow}>
               <SkipForward aria-hidden size={18} />
               Resolve
             </button>
-            <button className="flex h-11 items-center justify-center gap-2 rounded-md bg-amber-300 px-3 text-sm font-black text-amber-950 shadow" type="button" onClick={() => resetRun(createSeed())}>
+            <button className="flex h-11 items-center justify-center gap-1.5 rounded-md bg-amber-300 px-2 text-xs font-black text-amber-950 shadow sm:text-[13px]" type="button" onClick={() => resetRun(createSeed())}>
               <Shuffle aria-hidden size={18} />
               Shuffle
             </button>
@@ -417,17 +435,28 @@ export function FruArrowSim() {
                   return null;
                 }
 
+                const isLocked = lockedPlayerId === player.id;
+                const isHit = hitPlayerIds.has(player.id);
+
                 return (
-                  <div key={player.id} className={hitPlayerIds.has(player.id) ? "grid grid-cols-[34px_1fr_70px] items-center gap-2 rounded-md border border-red-400/60 bg-red-500/15 px-2 py-2" : "grid grid-cols-[34px_1fr_70px] items-center gap-2 rounded-md border border-white/10 bg-white/[0.035] px-2 py-2"}>
+                  <div key={player.id} className={getPartyRowClassName(isHit, isLocked)}>
                     <img className="h-8 w-8 object-contain" src={player.asset} alt={player.label} />
                     <div>
-                      <div className="text-sm font-black text-white">{player.label}</div>
+                      <div className="flex items-center gap-1 text-sm font-black text-white">
+                        {player.label}
+                        {isLocked ? <Lock aria-hidden className="text-amber-200" size={12} /> : null}
+                      </div>
                       <div className="text-xs font-bold text-slate-400">{renderAssignmentText(assignment)}</div>
                     </div>
-                    {hitPlayerIds.has(player.id) ? (
+                    {isHit ? (
                       <span className="inline-flex items-center justify-end gap-1 text-xs font-black text-red-200">
                         <AlertTriangle aria-hidden size={14} />
                         HIT
+                      </span>
+                    ) : isLocked ? (
+                      <span className="inline-flex items-center justify-end gap-1 text-xs font-black text-amber-200">
+                        <Lock aria-hidden size={13} />
+                        LOCK
                       </span>
                     ) : (
                       <span className="text-right text-xs font-black text-emerald-200">OK</span>
@@ -495,15 +524,30 @@ function Metric({ label, value }: { readonly label: string; readonly value: stri
   );
 }
 
-function getPlayerClassName(isHit: boolean): string {
+function getPlayerClassName(isHit: boolean, isLocked: boolean): string {
   const base =
     "absolute z-30 h-[10%] w-[10%] -translate-x-1/2 -translate-y-1/2 touch-none rounded-md bg-transparent p-0 transition-[filter,transform] duration-150";
+  const locked = isLocked ? "ring-2 ring-amber-200 ring-offset-2 ring-offset-transparent" : "";
 
   if (isHit) {
-    return `${base} drop-shadow-[0_0_18px_rgba(248,113,113,0.95)]`;
+    return `${base} ${locked} drop-shadow-[0_0_18px_rgba(248,113,113,0.95)]`;
   }
 
-  return `${base} drop-shadow-[0_8px_12px_rgba(0,0,0,0.55)]`;
+  return `${base} ${locked} drop-shadow-[0_8px_12px_rgba(0,0,0,0.55)]`;
+}
+
+function getPartyRowClassName(isHit: boolean, isLocked: boolean): string {
+  const base = "grid grid-cols-[34px_1fr_70px] items-center gap-2 rounded-md border px-2 py-2";
+
+  if (isHit) {
+    return `${base} border-red-400/60 bg-red-500/15`;
+  }
+
+  if (isLocked) {
+    return `${base} border-amber-200/50 bg-amber-300/10`;
+  }
+
+  return `${base} border-white/10 bg-white/[0.035]`;
 }
 
 function getPlayerStyle(position: Point): CSSProperties {
