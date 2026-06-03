@@ -1,0 +1,39 @@
+{
+  "name": "collab-whiteboard",
+  "version": "0.1.0",
+  "private": true,
+  "scripts": {
+    "dev": "next dev",
+    "dev:ws": "set HOST=127.0.0.1&& y-websocket-server",
+    "dev:events": "node scripts/collab-events-server.cjs",
+    "build": "next build",
+    "build:pages": "node scripts/build-github-pages.mjs",
+    "start": "next start",
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "@excalidraw/excalidraw": "0.18.1",
+    "@tldraw/sync": "^4.5.10",
+    "@y/websocket-server": "^0.1.5",
+    "lucide-react": "latest",
+    "next": "15.5.15",
+    "react": "18.3.1",
+    "react-dom": "18.3.1",
+    "tldraw": "^4.5.10",
+    "y-indexeddb": "^9.0.12",
+    "y-websocket": "^3.0.0",
+    "yjs": "^13.6.30"
+  },
+  "devDependencies": {
+    "@tailwindcss/postcss": "latest",
+    "@types/node": "latest",
+    "@types/react": "18.3.12",
+    "@types/react-dom": "18.3.1",
+    "postcss": "8.5.12",
+    "tailwindcss": "latest",
+    "typescript": "latest"
+  },
+  "overrides": {
+    "postcss": "8.5.12"
+  }
+}
