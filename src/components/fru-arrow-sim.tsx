@@ -279,6 +279,19 @@ export function FruArrowSim() {
     setPlayerPositions((current) => createStandardPlayerPositions(plan.assignments, current, lockedPlayerId));
   }
 
+  function toggleRun(): void {
+    if (isRunning) {
+      setIsRunning(false);
+      return;
+    }
+
+    if (elapsedMs === 0 && arrowDrops.length === 0) {
+      setPlayerPositions((current) => createStandardPlayerPositions(plan.assignments, current, lockedPlayerId));
+    }
+
+    setIsRunning(true);
+  }
+
   const progressPercent = Math.min(100, (elapsedMs / 10000) * 100);
   const duplicateCount = plan.assignments.filter((assignment) => assignment.first === assignment.second).length;
   const mixedCount = plan.assignments.length - duplicateCount;
@@ -344,7 +357,11 @@ export function FruArrowSim() {
                 <button
                   key={player.id}
                   type="button"
-                  className={getPlayerClassName(hitPlayerIds.has(player.id), lockedPlayerId === player.id)}
+                  className={getPlayerClassName(
+                    hitPlayerIds.has(player.id),
+                    lockedPlayerId === player.id,
+                    dragState?.playerId === player.id
+                  )}
                   style={getPlayerStyle(playerPositions[player.id])}
                   aria-label={`${player.label} move handle`}
                   onPointerDown={(event) => startDrag(player.id, event)}
@@ -383,7 +400,7 @@ export function FruArrowSim() {
           </div>
 
           <div className="grid grid-cols-2 gap-2 sm:grid-cols-5">
-            <button className="flex h-11 items-center justify-center gap-1.5 rounded-md bg-emerald-500 px-2 text-xs font-black text-emerald-950 shadow sm:text-[13px]" type="button" onClick={() => setIsRunning((value) => !value)}>
+            <button className="flex h-11 items-center justify-center gap-1.5 rounded-md bg-emerald-500 px-2 text-xs font-black text-emerald-950 shadow sm:text-[13px]" type="button" onClick={toggleRun}>
               {isRunning ? <Pause aria-hidden size={18} /> : <Play aria-hidden size={18} />}
               {isRunning ? "Pause" : "Start"}
             </button>
@@ -524,16 +541,17 @@ function Metric({ label, value }: { readonly label: string; readonly value: stri
   );
 }
 
-function getPlayerClassName(isHit: boolean, isLocked: boolean): string {
+function getPlayerClassName(isHit: boolean, isLocked: boolean, isDragging: boolean): string {
   const base =
-    "absolute z-30 h-[10%] w-[10%] -translate-x-1/2 -translate-y-1/2 touch-none rounded-md bg-transparent p-0 transition-[filter,transform] duration-150";
+    "absolute z-30 h-[10%] w-[10%] -translate-x-1/2 -translate-y-1/2 touch-none rounded-md bg-transparent p-0";
+  const motion = isDragging ? "transition-[filter,transform] duration-150" : "transition-[filter,transform,left,top] duration-700 ease-out";
   const locked = isLocked ? "ring-2 ring-amber-200 ring-offset-2 ring-offset-transparent" : "";
 
   if (isHit) {
-    return `${base} ${locked} drop-shadow-[0_0_18px_rgba(248,113,113,0.95)]`;
+    return `${base} ${motion} ${locked} drop-shadow-[0_0_18px_rgba(248,113,113,0.95)]`;
   }
 
-  return `${base} ${locked} drop-shadow-[0_8px_12px_rgba(0,0,0,0.55)]`;
+  return `${base} ${motion} ${locked} drop-shadow-[0_8px_12px_rgba(0,0,0,0.55)]`;
 }
 
 function getPartyRowClassName(isHit: boolean, isLocked: boolean): string {
